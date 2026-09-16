@@ -10,6 +10,7 @@ import com.aistudio.lioracamward.data.model.BleDeviceObservation
 import com.aistudio.lioracamward.data.model.Finding
 import com.aistudio.lioracamward.data.model.ScanModule
 import com.aistudio.lioracamward.data.model.Severity
+import com.aistudio.lioracamward.ui.components.RadarBlip
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +25,9 @@ class BleDetector(private val context: Context) {
     private val _devices = MutableStateFlow<List<BleDeviceObservation>>(emptyList())
     val devices: StateFlow<List<BleDeviceObservation>> = _devices.asStateFlow()
 
-    private var isScanning = false
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
     private var onFindingListener: ((Finding) -> Unit)? = null
     private val seenAddresses = mutableSetOf<String>()
 
@@ -33,7 +36,7 @@ class BleDetector(private val context: Context) {
             "cam", "dvr", "nvr", "cctv", "escam", "icam", "xmeye", "icsee", "yoosee",
             "wyze", "dahua", "reolink", "foscam", "eufy", "annke", "amcrest", "lorex",
             "tiandy", "milesight", "uniview", "kedacom", "hikvision", "zosi", "hanbang",
-            "wanscam", "sricam", "vstarcam", "v380"
+            "wanscam", "sricam", "vstarcam", "v380", "tuya", "smartlife"
         )
 
         private val SUBSTRING_KEYWORDS = listOf(
@@ -41,7 +44,7 @@ class BleDetector(private val context: Context) {
             "nannycam", "nanny cam", "babycam", "baby cam", "bodycam", "dashcam",
             "eufycam", "anker cam", "hik-connect", "yi cam", "yicam", "v380pro",
             "p2pcam", "p2p cam", "ctronics", "swann cam", "mini cam", "minicam",
-            "clock cam", "pen cam", "pinhole"
+            "clock cam", "pen cam", "pinhole", "surveillance"
         )
 
         private val WHOLE_WORD_PATTERN = Pattern.compile(
@@ -94,9 +97,9 @@ class BleDetector(private val context: Context) {
                 onFindingListener?.invoke(
                     Finding(
                         module = ScanModule.BLUETOOTH,
-                        severity = Severity.SUSPICIOUS,
-                        title = "Suspicious BLE Device: \"$deviceName\"",
-                        detail = "Broadcasting Bluetooth beacon matches known surveillance / IP camera OEM firmware pattern (\"$signatureMatch\") at RSSI $rssi dBm.",
+                        severity = Severity.HIGH,
+                        title = "Surveillance BLE Beacon: \"$deviceName\"",
+                        detail = "Broadcasting Bluetooth advertisement matches known surveillance / IP camera OEM firmware pattern (\"$signatureMatch\") at RSSI $rssi dBm.",
                         evidence = mapOf(
                             "deviceName" to deviceName,
                             "macAddress" to address,
@@ -105,43 +108,101 @@ class BleDetector(private val context: Context) {
                         )
                     )
                 )
+            } else if (!seenAddresses.contains(address) && currentList.size <= 5) {
+                // Report first few ambient devices for context
+                seenAddresses.add(address)
+                onFindingListener?.invoke(
+                    Finding(
+                        module = ScanModule.BLUETOOTH,
+                        severity = Severity.INFO,
+                        title = "BLE Peripheral Detected: $deviceName",
+                        detail = "Local wireless beacon discovered (Signal: $rssi dBm). MAC: $address. Normal ambient device.",
+                        evidence = mapOf(
+                            "deviceName" to deviceName,
+                            "macAddress" to address,
+                            "rssi" to "$rssi dBm"
+                        )
+                    )
+                )
             }
         }
 
         override fun onScanFailed(errorCode: Int) {
-            // Scan failed or permission denied
+            _isScanning.value = false
         }
     }
 
     @SuppressLint("MissingPermission")
     fun startScan(onFinding: (Finding) -> Unit): Boolean {
-        if (!isSupported || !isEnabled || isScanning) return false
         onFindingListener = onFinding
         seenAddresses.clear()
         _devices.value = emptyList()
+
+        if (!isSupported) {
+            onFinding(
+                Finding(
+                    module = ScanModule.BLUETOOTH,
+                    severity = Severity.INFO,
+                    title = "Bluetooth Adapter Unavailable",
+                    detail = "No Bluetooth LE controller detected on this environment. Optical glint, magnetometer, and network scans remain active.",
+                    evidence = mapOf("bleSupported" to "false")
+                )
+            )
+            return false
+        }
+
+        if (!isEnabled) {
+            onFinding(
+                Finding(
+                    module = ScanModule.BLUETOOTH,
+                    severity = Severity.INFO,
+                    title = "Bluetooth is Powered Off",
+                    detail = "Turn Bluetooth ON in Android settings to enable real-time detection of nearby wireless spy cameras and BLE beacons.",
+                    evidence = mapOf("bleEnabled" to "false")
+                )
+            )
+            return false
+        }
+
+        if (_isScanning.value) return true
 
         return try {
             val scanner = bluetoothAdapter?.bluetoothLeScanner
             if (scanner != null) {
                 scanner.startScan(scanCallback)
-                isScanning = true
+                _isScanning.value = true
                 true
             } else {
                 false
             }
         } catch (e: SecurityException) {
+            _isScanning.value = false
             false
         }
     }
 
     @SuppressLint("MissingPermission")
     fun stopScan() {
-        if (!isScanning) return
-        isScanning = false
+        if (!_isScanning.value) return
+        _isScanning.value = false
         try {
             bluetoothAdapter?.bluetoothLeScanner?.stopScan(scanCallback)
         } catch (e: Exception) {
             // Ignore on teardown
+        }
+    }
+
+    fun getRadarBlips(): List<RadarBlip> {
+        return _devices.value.map { dev ->
+            val distance = ((-dev.rssi - 30f) / 65f).coerceIn(0.15f, 0.9f)
+            val angle = (kotlin.math.abs(dev.address.hashCode()) % 360).toFloat()
+            RadarBlip(
+                id = dev.address,
+                angleDegrees = angle,
+                distanceRatio = distance,
+                isAlert = dev.isSuspicious,
+                label = dev.name
+            )
         }
     }
 

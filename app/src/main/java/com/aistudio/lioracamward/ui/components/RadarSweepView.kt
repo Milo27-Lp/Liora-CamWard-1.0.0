@@ -30,7 +30,8 @@ data class RadarBlip(
     val id: String,
     val angleDegrees: Float,
     val distanceRatio: Float, // 0.1 to 0.9
-    val isAlert: Boolean = false
+    val isAlert: Boolean = false,
+    val label: String = ""
 )
 
 @Composable

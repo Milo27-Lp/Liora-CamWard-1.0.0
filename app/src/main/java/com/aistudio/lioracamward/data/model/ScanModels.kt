@@ -53,3 +53,11 @@ data class OpticalCluster(
     val compactness: Float,
     val framesPersisted: Int
 )
+
+data class NetworkDeviceObservation(
+    val ip: String,
+    val hostname: String? = null,
+    val openPorts: List<Int> = emptyList(),
+    val isSuspicious: Boolean = false,
+    val serviceHint: String? = null
+)

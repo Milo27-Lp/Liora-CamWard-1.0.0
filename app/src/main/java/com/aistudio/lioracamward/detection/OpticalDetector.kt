@@ -46,9 +46,10 @@ class OpticalDetector {
     }
 
     /**
-     * Analyzes downsampled luminance buffer (Y channel) from CameraX ImageProxy
+     * Analyzes downsampled luminance buffer (Y channel) from CameraX ImageProxy.
+     * Uses rowStride and pixelStride to accurately read YUV_420_888 camera frames.
      */
-    fun processLumaPlane(buffer: ByteBuffer, width: Int, height: Int) {
+    fun processLumaPlane(buffer: ByteBuffer, width: Int, height: Int, rowStride: Int = width, pixelStride: Int = 1) {
         if (width <= 0 || height <= 0) return
 
         val sampleW = 80
@@ -59,28 +60,28 @@ class OpticalDetector {
         val detectedThisFrame = mutableListOf<OpticalCluster>()
         val seenGridKeys = mutableSetOf<String>()
 
-        val rowBytes = ByteArray(width)
+        val bufferLimit = buffer.limit()
 
         for (sy in 0 until sampleH) {
             val srcY = sy * stepY
             if (srcY >= height) break
-
-            buffer.position(srcY * width)
-            val available = buffer.remaining().coerceAtMost(width)
-            buffer.get(rowBytes, 0, available)
+            val rowOffset = srcY * rowStride
 
             for (sx in 0 until sampleW) {
                 val srcX = sx * stepX
-                if (srcX >= available) break
+                if (srcX >= width) break
 
-                val luma = rowBytes[srcX].toInt() and 0xFF
+                val index = rowOffset + srcX * pixelStride
+                if (index < 0 || index >= bufferLimit) continue
+
+                val luma = buffer.get(index).toInt() and 0xFF
                 if (luma >= BRIGHTNESS_THRESHOLD) {
                     val relX = sx.toFloat() / sampleW.toFloat()
                     val relY = sy.toFloat() / sampleH.toFloat()
 
-                    // Exclude borders to avoid bezel glares
-                    if (relX in 0.1f..0.9f && relY in 0.1f..0.9f) {
-                        val gridKey = "${(relX * 10).toInt()}:${(relY * 10).toInt()}"
+                    // Exclude extreme borders to avoid bezel / flash boundary glares
+                    if (relX in 0.08f..0.92f && relY in 0.08f..0.92f) {
+                        val gridKey = "${(relX * 12).toInt()}:${(relY * 12).toInt()}"
                         seenGridKeys.add(gridKey)
 
                         val currentCount = (hotspotHistory[gridKey] ?: 0) + 1
@@ -101,8 +102,8 @@ class OpticalDetector {
                                 Finding(
                                     module = ScanModule.OPTICAL,
                                     severity = Severity.SUSPICIOUS,
-                                    title = "Optical Lens Glint Highlight Detected",
-                                    detail = "Pinpoint specular reflection observed at screen coordinate (${(relX * 100).toInt()}%, ${(relY * 100).toInt()}%). Lenses create characteristic circular reflections when illuminated by the flashlight. Move slightly to check if reflection alters with viewing angle.",
+                                    title = "Optical Lens Specular Glint Detected",
+                                    detail = "Pinpoint specular reflection observed at screen position (${(relX * 100).toInt()}%, ${(relY * 100).toInt()}%). Curved glass pinhole camera lenses reflect concentrated light when illuminated by the flashlight. Move slightly to inspect if the glint maintains a fixed reflection point.",
                                     evidence = mapOf(
                                         "coordinates" to "${(relX * 100).toInt()}%, ${(relY * 100).toInt()}%",
                                         "brightness" to "$luma / 255",

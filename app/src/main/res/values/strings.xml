@@ -17,4 +17,7 @@
     <string name="ble_surveillance_detected">Surveillance Radio Device Detected</string>
     <string name="disclaimer_title">Safety &amp; Privacy Notice</string>
     <string name="disclaimer_body">Liora CamWard analyzes physical sensor signals (optical reflections, magnetometer deviations, and BLE radio signatures). Results are indicative and should always be corroborated with careful manual inspection.</string>
+    <string name="audio_feedback_muted">Audio Muted</string>
+    <string name="audio_feedback_active">Audio Active</string>
+    <string name="toggle_audio_feedback">Toggle Audio Feedback</string>
 </resources>

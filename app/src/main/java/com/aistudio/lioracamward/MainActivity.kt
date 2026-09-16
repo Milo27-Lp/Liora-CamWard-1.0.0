@@ -149,6 +149,7 @@ fun MainAppNavHost(repository: com.aistudio.lioracamward.data.repository.ScanRep
             ) {
                 composable(Screen.Home.route) {
                     HomeScreen(
+                        scanRepository = repository,
                         onStartScan = { navController.navigate(Screen.Scan.route) },
                         onViewHistory = { navController.navigate(Screen.History.route) },
                         onViewGuide = { navController.navigate(Screen.Guide.route) }

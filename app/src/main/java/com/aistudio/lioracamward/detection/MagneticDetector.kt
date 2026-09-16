@@ -49,9 +49,21 @@ class MagneticDetector(private val context: Context) : SensorEventListener {
         get() = magnetometer != null
 
     fun start(scope: CoroutineScope, onFinding: (Finding) -> Unit) {
-        if (!isAvailable || isScanning) return
-        isScanning = true
+        if (isScanning) return
         onFindingListener = onFinding
+        if (!isAvailable) {
+            onFinding(
+                Finding(
+                    module = ScanModule.MAGNETIC,
+                    severity = Severity.INFO,
+                    title = "Magnetometer Hardware Unavailable",
+                    detail = "No physical magnetic flux sensor detected on this device/emulator. Optical camera glint, Bluetooth LE, and local network audits remain operational.",
+                    evidence = mapOf("sensorAvailable" to "false")
+                )
+            )
+            return
+        }
+        isScanning = true
         baselineSamples.clear()
         baselineMagnitude = null
         baselineDone = false
