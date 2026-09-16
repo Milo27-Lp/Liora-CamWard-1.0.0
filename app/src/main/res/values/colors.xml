@@ -1,0 +1,12 @@
+<resources>
+    <color name="primary_neon">#00FF88</color>
+    <color name="primary_dark">#00CC66</color>
+    <color name="background_dark">#080C10</color>
+    <color name="surface_dark">#101620</color>
+    <color name="surface_card">#16202E</color>
+    <color name="radar_cyan">#00E5FF</color>
+    <color name="warning_amber">#FFB000</color>
+    <color name="danger_red">#FF2A55</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#9EABBF</color>
+</resources>

@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">Liora CamWard</string>
+    <string name="app_tagline">Surveillance &amp; Hidden Camera Detector</string>
+    <string name="nav_home">Radar</string>
+    <string name="nav_scan">Inspect</string>
+    <string name="nav_history">History</string>
+    <string name="nav_guide">Guide</string>
+    <string name="start_scan">Start Full Inspection</string>
+    <string name="stop_scan">Stop Inspection</string>
+    <string name="save_report">Save Inspection Report</string>
+    <string name="risk_clear">Clear - No Anomalies</string>
+    <string name="risk_low">Low Risk - Minor Signals</string>
+    <string name="risk_medium">Medium Risk - Suspicious Device</string>
+    <string name="risk_high">High Risk - Spy Device Alert</string>
+    <string name="optical_glint_detected">Optical Glint Reflection Detected</string>
+    <string name="magnetic_anomaly_detected">Magnetic Field Anomaly Detected</string>
+    <string name="ble_surveillance_detected">Surveillance Radio Device Detected</string>
+    <string name="disclaimer_title">Safety &amp; Privacy Notice</string>
+    <string name="disclaimer_body">Liora CamWard analyzes physical sensor signals (optical reflections, magnetometer deviations, and BLE radio signatures). Results are indicative and should always be corroborated with careful manual inspection.</string>
+</resources>
